@@ -1,0 +1,157 @@
+What is redis
+- Redis is a in memory data base widely used a cache 
+- Since it is in memory the speed of insertion and retrieval is faster as there is no disk/network overhead
+- Stores data in key value pair and also known as No SQL key value data store
+- can store backup files for disater recovery
+- uses master slave concept , master tells slaves to have its own copy and anytime master goes down, any of the slave can take its role for high availability
+
+Use cases:
+a. Distributed session
+b. Distributed and Normal cache management
+c. pub/sub model
+d. low memory no sql in memory data store
+e. leader gaming app like livescore, any change in db will be very slow to reflect
+f. geospatial
+
+SQL D.B:
+- Data schema is fixed
+- relation exist between the fixed data tables(entities)
+- horizontal scaling very complicated but vertical sacling can be done
+-eg: mysql , oracle,microisoft, postgresql
+
+NO SQL D.B:
+- data schema is not fixed, it is dynamic
+- no relation between entities/documets/data
+types: 
+a. key value pairs : like redis,dynamo db, voldemort
+b. document based : like mongo , cassandra, data is strored in json/document like structure
+c. graph based : neo4j used to represnet graph like structure with greate efficeinecy like facebook users
+d. time based : 
+
+- ACID is not fully supported by no sql d.b for perfoormance reasons, but sql is acid compilant 
+- Also NoSQL is not very proficient in data mining and data lakes as unstructured query language for business intelligenc eis not good supported
+
+Data types of value in Redis ( Redis is key value data store -> key can be string but value can be different types)
+- string : meaning one key will heva only one valkue whihc is of string type
+- list: meaning one key can have list of values , whihc can be duplicates
+- set: one key cna have calue as set -> duplicates not allowed
+- hashes: meaning one key can hve value as map -> 
+
+Command to remove any key : del key name
+Command to find list of keys : keys * , keys strpatter* and so on
+Command to check if key esists: exists myset
+
+String data types:
+- we can add using command set keyName and value , in case value have space keep inside "" eg : set message1 "jai shree ram"
+- we can search for all keys as keys * or with specific pattern regex -> keys message*
+- key shud be unique otheriwse old value witll get obverridedn as value is of string type
+- we can set the ttl at the time of setting , eg : set message5 "delete ho jayega paap" ex 25  - ? ttl is 25 seconds , will get deleted after that time
+- we can get ttl of any key using command - >ttl keyname
+- we can check exists command to see if key exists
+- supports commands liks java functions -> strlen (for stirng length), append (for appending string) , substring based on 0 index(using command getrange)
+- in case value string is integer we can increment and decrement using incr and decr comand by 1 , if want to incrmenet by specific us incrby and decrby
+-  we can set multiple string keys using command mset -> eg: mset key1 value1 key2 value2 key3 value3, similarly we can do multiple gets using mget key1 key2 key3 
+
+List data ttype
+- we can add using command lpush to insert in insertion order like java arraylist
+- lpush can be passed multiple items and it pushes the item one by one to existing list on the left
+- rpush pushes at the end of list
+- lrange can be used o view the list lrange 0 3
+- we can set value at any index using set command 
+- we cna use command lpop and rpop to get and remove item form leftmost index and right most index respectively -> use lrange 0 -1 for all items from 0 till end
+
+Set data types
+- Just like hashset in java it do  not allow duplicates , have better retrieval performnac ebur insertion order is not maintained while retreiving data
+- Just like hashset we can do union , intersection of sets -> sunion set1 set2
+- to eect out one random item from set and remove it from set -> spop myset
+-- all comands starts with s eg: sadd ,spop, scard, smembers etc 
+
+Ordered Sets:
+- Acts like sorted set in java -> no pduplicates are allowed but data is sorted based on rule of ascending -> we need to passpriority and least priority item is kept at lower index
+- all commands starts with z eg: zadd
+- we cna have zrange option here as the items are ordered and kept with specific order
+- while using zadd we need to pass score value, it sorts the items based on this score form min to max
+	eg: zadd setname 10 messi 8 kaka 0 xavi 14 bingo  will make set like xavi kaka messi bingo -> we can get zrange setname withscores to get items and then its score as well
+
+Hashes:
+- Acts same like hashmap/hashtable in java
+- All commands starts with h eg hset keyname key val , hget keyname key , hmset (for multiple key setting) -> hmget for multiple keu getting 
+- hgetall keyname -> returns all the key value pair of hash entry
+- hexists keyname hashKeyName to check if hashKeyname exist, hdel key hashKey -> to rmeove entry of name hashKey
+
+
+============Data persistence==========
+- We can use RDB to have a snapshot of data creaed based on rule set in conf file
+- we can manually call save command that creates the RDB snapshot file but it blockes any new update to master D.B, we cna manually call bgsave command to update the snapshot in back ground process and hence
+	no blocking of newer data in master D.B
+- enabled by default, we can configure in redis config file
+- the same RDB dump file can be shared to other netwroks after encrypting and other instnace can decrypt and import the data at other installed instnace of redis
+
+AOF : append only file
+- A better way to introduce durability in redis
+- every time a write operation is done it takes a log in a file and append at the end -> like Event sourcing
+- Once server restarts it executes the AOF file commands one by one to get latest state of D.B
+- In RDB file if power goes out after last snapshot time then we wloose all the so far made transactoins, this thing will not be lost with the help of AOF
+- Even AOF do loading of data in background thread if data is too large to be processed and hence no concern with performance, but AOF upload is still slower tan RDB way
+- in redis config file we can set appendonly to true to enable AOF for durability and set the file name for AOF , default it is disabled
+
+- Hybrid approach is the best mechanism whihc combines RDB data persistence and AOF durability features
+
+============Redis Sentinel=============
+- A api tool in redis to manage and monitor clustered REdis instances
+- for high availability it is recomended ot have one master and different slave instances
+- Sentinel layer sits between the client/java app cliet/front end client and the cluster of master and slave
+- Purpose: manages and monitor the master andits slaves and its performance
+	- send notification if master or slave are not performaning well or is down
+	- can do automatic rolling to one of the slave if master goes down, one of the slave becomes master and other slaves still remain slave, until master is up
+
+- Client calls sentinel cluster(should have more than one instance of centinel running along in redis cmachine but different process/thread)
+	- it check and confirm if master is down then as per its other sentinel process they decide if master is actually down and which slave to amke master
+
+- to start slave 
+ - same config as master, change the port and put slave of property with host and port of master node
+-	start redis-server and pass the config path
+to start sentinel
+- use same config file as master
+	just update the port and add sentinel proeprty milliseconds
+command
+redis-server /path/to/sentinel.conf --sentinel
+- we cna use smae connfig as master
+
+- Once we are connected to sentinel node using redisc-cli command we cna use commands provided by sentinel to moitor and do things
+
+Sentinel is good but REDIS CLUSTER is a strong cloud based cluster tool for redis
+- It is based on data sharding and hence allows horizonatal scaling for better availability and performance
+- Sentinel also provides good availability but once data grows in project with time its availability reduces
+- data sharding helps us to have different master nodes (also connected to individual slave nodes whihc becomes master on failure of master node)
+	- a set of data is hashed on the basis of hash code redis cluster decides whihc specific master node to push the data and hence data is partitioned
+	same while retrieving based on hashcode cluster manager looks for specific master(or slave in case of automzatic fallover)
+
+Transactions can be done using
+	-> multi : to start the transaction
+	then all the intermediate commenads will be queued making it atomic and isloated to other transactions
+	-> exec: commit the transaction
+
+watch command
+- In case one transaction is in progress and within that time another transaction updated one of the property u are modifying and committed the transaction
+	-< the first transaction will be rolled back if watch was added before opening the transaction using watch command and multi command
+
+- we can do publisher subscription (one to many communications) using pub/sub commands
+-	 once all subsrribers are subscribed to a channel, and a publisher sends message to chanell it gets sent to all of the subscribers
+
+
+Redis Cline supports:
+a. Jedis : easy and supportable java based clinet -> integrated with spring data redis, its very light weight and easy to understand but still powerful for basic redis integration with java client
+b. lettuce: Have async and reactive support for redis integration with java, can create sentinel and other advanced monitoring things
+c. redisson : distributed redis clinet with java
+
+-===== Jedis integration is a single thread and hence it becomes thread safe -. redis is a single threaded application
+	-> supports multiple thread to execute task as redis itself is a single threaded application
+	-> integrates well with spring data redis
+	-> provides jedisconnection pool -> ready made support for connection pool and saves development time
+- spring data redis provided bean RedisTemplate for any redis based operations and data structure command calls using java code
+
+- Just like rabbit mq the data stored in Redis is byte[]
+- So the default serializer can do conversion of string to byte[] automatically, using default serializer -> string redis serializer
+	however for object conversion it either uses jdk default serializtion technique , but as we know java defalt serialzation technique is strict and may break during certain conditions
+- so better for object to byte [] conversion we must use jacksomRedis serialzer and provide a brena for it, as default object conversion will use jdk serialzer which is not good enough sometimes
