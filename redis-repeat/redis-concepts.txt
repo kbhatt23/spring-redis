@@ -1,0 +1,161 @@
+Steps to run redis using docker
+	start the redis server:
+- docker container run -p 6379:6379 --name redisDB redis
+	with volume to persist data
+	docker container run -p 6379:6379 -v redis-data:/data --name redisDB redis
+
+	start redis client to connect to default redis port:
+- docker container exec -it redisDB redis-cli
+
+- Redis is an open source in memory data structure store used as databse, cache , message broker
+	- in memory means it keeps the data in RAM and not in ROM files , hence it is faster than sql based data bases whihc stores data in flat file actually
+	- data structure store means it stores data in form of data structures like list, set, string,hashes etc
+	-written in c and hence native methods are way faster
+	- open source (free)
+	- disaster recovery using AOF+ RDB files, operations are performaed based on RAM memory but on scheudled time data is saved to disk
+	, so that if process goes down (like in microservice) data is not lost
+	- high availability using sentinel(cheaper) and using cluster for low latency high throuput by doing scale up
+	- distributed mechanism for scaling up using clusters
+	- lcuster provides auto distribution of clients to multple redis servers
+- redis is open sorue but there is a seprate entity called redis labs tatprovides support for production/enterprise level
+	like creating clustered prod level environmnt but that is paid
+
+---- redis benchmarking
+	this tool can be used to give sample data and operations on that data to find the performance for those
+	this can help us predict the instance that we could use in production cluster
+	steps for benchmarking
+	go to bin folder
+	a. start the redis server with proper config and port
+	b .\redis-benchmark -q -n 100000
+
+	.\redis-benchmark -q -h 127.0.0.1 -p 6380 -t set,get,sadd -n 100000
+
+- best use case is caches since it is in memory and keeps data in RAM and not ROM
+	since caches have less data and hence can be kept in memory as RAM size is comparatilvely lesser than ROM
+- NOSQL based Data base having key value stores
+	value can be list,set,string or map
+-  we can have backups/recovery AOF file stored in seconday memory for disaster recovery
+
+- Redis provides manipulation operations like append,incr,incrby,incrbyfloat so that in single step task is done
+	which otherwise would need one read and one write operation using relational sql dbs
+
+- in redis list is implemented using linked list 
+	and hence write/insertions are faster and read is slower
+
+- Redis does not allow rollback in transaction unlike other DBs
+	it pushes commands in queue and run them one by one, it rollbacks only if command syntax is wrong
+	it command syntax is correct but fails in runtime it commits commands individually and hence no rollback in case of runtime errors like key not exists
+
+- watch command is used to ensure that data manipultaion happens only in multi transaction
+	any command executing the key added for watch outside the transaction will make the transaction to fail
+	watch command is to ensure consistent state of D.B
+	if one tranaction opens and try to modify a key which is beeing watched and another thread modifies the key before transacction ends
+	the whole transaction is rolledback
+
+eg: one transaction is runinng to book the ticket
+	suddenly another threadmanage to book the ticket before the first transaction is abt to commit, then if were watching then it will rollback
+	steps:
+	watch ticket-1
+	multi
+	decr ticket-1
+
+=====redis bulk insertion
+- redis provides bulk insertion from csv file in specific format
+	this way we need not to first read the file in java code and using for loop call the set/update for each line one by one
+		as that way there will be n number of calls to redis whihc retrusn response
+	using bulk operation we can pass only single request to redis and redis internally read the files to  bulk operation
+	we can use bulk operation option by creating a file with each line having same syntax as redis command	
+
+redis pub/sub
+	- A publisher sends data to broker managed by redis
+		publisher wont know what all reciever will recieve its encapsulated for loose coupling
+		subscriber/lister recieves data from broker and hence do not know the publisher
+
+ in redis the subscriber model is hot meaning in case subsriber is not subscribed to cahannel and message was sent by producer to broker
+	then that data will be lost,
+	if listerner subscribes to chanell after producer sent data it willbe lost
+
+	thats why in microservice redis is not used as broker as in case reciever was down at time of data sending and hence data may get lost
+	however if our system is fine wtih this data lost then we can use like twitter, but not in order related based microservice
+	- in redis we do not have to ceate cahnel , just pass the name in publish or subscribe and it gets patched in ,
+	meaning we can subscribe to channels with no publisher and we can publish to chanell with no subscriber and also chanel wot be existing
+
+ along with normal chanel publish and subscribe we can even do pattern based chanel publish and subscribe
+
+- Geospatial functioanlities of redis are used to store data based on geo location(latitude and longiturde)
+ eg google maps, uber eats, where data of restraunts are saved based on latitude and longitude 
+	and based on user's latitude and longitude these are shown
+- eg finding list of restraunts within 2 miles distance from user current location 
+-	redis is great db for geospatial based application with very low latency and high throughput
+
+- data for geolocation is stored in form of geo hash which contains latitude and longitude pairs
+	- internally geo hash is stored in the form of sorted set	geohash is like a encoded integer based on latitude and longitude
+	the score of the sorted set will be the geohash and value will be the name(or combination of other properties like address pincode etc) of the location
+	geohash means encoded value of combination of latitude and longitude
+
+	redis restricts latitude and longitude at the poles
+	sums eth to be sphere and use mathematical formula based on that
+
+- hyperloglog
+- An example of a use case for this data structure is counting unique queries performed by users in a search form every day.
+ lets say we want to count number of ips who are running our website
+	we could be using set but it stores the element data and hence need more memeory and have performance impact
+	hyperloglog is an alternative so that it can do counting for unique elments
+	we can add elemnts and on calling count method it returns the unique element count
+	we can even merge t hyperlog log
+
+--------- redis data persistence--------------
+a. RDB : done using command save 60 1000: check every 60 seconds to see if 1000 keys are updated/modified/created then save the state to a .RDB file
+		in case redis shutdowns on startup it picks the data from this RDB file and restores the data, 
+		however there are chances that certia data will be lost
+	better in performace as during read/write it do not take snapshot but during scheduled time, but there are cahnce of data loss
+	in rdb since data is stored in raw format chances of corruption is more ,
+	however in case of AOF the commands are saved and hence chances of corruption is less and hence AOF is more durable
+
+# it is better to keep less scheduled time with high number of data modification
+# also in case time is high even with lesser count we do the snapshot
+
+b. AOF: known as append only file
+	on every write in redis in memorym it also saves the entry to the .AOF file based on fsync policy
+	however if fsync is everywrite then it can cause performance issue as every write it has to write in memory as well as on disk(slowerer)
+	however we can intelligently put fsync policy to ensure better berformace and less data loss
+	less cahnce of data loss but performance may degrade
+	less chance of corruption as instead of saving the actual data it saves the commands executed
+c. hybrid (RDB + AOF)
+
+- master-- slave
+	we can have multiple slaves of master , but slaves are read only, hence communication of write ppens only thorugh master
+	slaves are read only hence users can use them for reading
+	but write oerpation happens through master and a perapreate job will sync master and slave so that slave is updated with correct data
+
+	the above concept is called data replication
+	however it can not create high availability as data can only be written by master and if master goes we can only read via slaves
+	we must use sentinel on top of replcation architechture to make one of the slave as master if master goes down
+
+----sentinel
+	- minimum 3 instance of sentinel is needed to allow high avilability of master slave instance
+	as quorum is 3 by default meaning minimum number of sentinel instacne whihc says the master is down
+	each sentinel instance acts as health monitor of current master and result occupied by each instance
+	quroum means min number of sentinel instance whihc when says master is down, then only one of the slave is upgraded as master, so that write operation can still be done
+
+- redis cluster/ master-slae archtirechture for clustering is same like apache kafka and other distributed tools
+	we can min-slave-replicas so if in cluster there are 3 slaves and min slave replic is set to 2 
+	and if 2 of the slave goes down hence there is only one master and one slave this will block amster to do any write operation as min replcias is set to 2
+	sentinel acts as zookeeper
+
+- if anytime master goes down and based on time set and quorum sentinel think to make another slave as master
+	a. it picks one of the slave and make it master -> so if we do sentinel master mastername in redis-cli for sentiner server host and port
+		-> it will show that another slave node hasv become master
+	b. ex master will be mapped as slave, so if we start the old master manually
+		it will become slave of newly appointed master automatically
+- in case of manual starting of redis instance we can copy the .rdb file to that server from old master and manually up the instance 
+	then using sentinel set master command we can manualy make that new instance as master of redis cluster
+
+- redis cluster contains multiple masters and having multiple slaves with sentinel in between
+	it is not like kafka and rabbit mq where data is divided
+	each master will have its own slave instance
+	if one of the master goes down , its slave will become the new master
+	if slave goes down no issues
+- in sentinel case we will have a single master node and multiple slave nodes as read replicas
+	however in case of cluster there will be multiple masters with its own replcated slave read only replicas
+	- minimum 3 masters and 3 slaves are needed in redis cluster just like minimum 3 amount of sentinel instances
