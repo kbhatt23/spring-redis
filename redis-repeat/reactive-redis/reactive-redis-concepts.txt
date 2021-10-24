@@ -1,0 +1,87 @@
+why we need redis in case of reactive webflux applications
+a. in case of service to service communication we can reduce latency for future calls for the customer
+b. in case of service to service communication we can reduce rate limiting and network calls for future calls for the customer
+   this can help in reducing cost as some external apis increase the rate if a limit of netwrok calls is reached
+c. in case of reactive d.b to microservice call, since redis is in ram it will always be faster than ROM based D.Bs
+d. also we can reduce cost by rate limiting and not calling D.Bs from microservice
+
+use case of redis
+a. distributed caching : in case of microservice due to load balancing next req can go to another instance of microservice
+				hence can not use memcache or in memoty cache, 
+b. distributed sessions
+c. leaderboard management : like finding top 10 trending tweets or top 10 products etc
+d. pub/sub : got pub sub, even in microservice it can be used
+e. geospatial
+f. hyperloglog
+
+- redis is a distributed salable in memory data structure store
+redis is open soruce -> redis.io
+we an use a production commercial licensed redis cluster using redislabs.io				
+
+- never use keys * in production as it can degrade performance, always use keys with regex pattern for debugging
+- also for not loading the redis server a ot we can use scan which provides pagination incase a regex matches and a lot of keys comes up
+
+- sorted set act like a priority queue
+
+- Redis is single threaded and hence all the queries passe by concurrent clients will be psuehd to a queue 
+ redis single thread keeps on polling from the queue and doing the task, no need of synchronization as there is one thread only
+ 
+- Redis transaction are just like a queue where we can keep adding multiple commands
+	when we say exec it execute all the command independetly and in case there is some issue it commits good commadns and ignore bad commands
+	- so it basically does not look like actual transaction
+- however if in case in code we get any excecption ,  we should keep all the redis manipulation commands in single try catch block
+		and in case of any exception we must call transaction.discard method which roll backs, it do not happen automatically
+		
+- java based redis libraries:
+a. jedis : light weight, provides connection pool, very fast but outdated as it do ot support reactive streams
+				also is not thread safe
+b. lettuce : default library in spring data redis starter
+    light weight , have reactie support, thread safe
+c. redisson: have spring data redsis support, supports reactie streas 
+		also have added abstraction on oob redis data structures and have extra cool features
+		making it heavier then lettuce
+		
+		Redisson objects opeartions are reactive, meaning buckets.set or get or map.put , atonicLong.incrment all will return flux/mono
+
+Redisson provided objects:
+a. buckets : used to abstract a string based key value, can set ttl and so on		
+b. atomiclong: used to abstract a number based value, supports getincrement and other reactive opeartions
+c. map: represents hash data struture, all operations are reactive
+			however we can not timeout individual entries in map, whole map will go tto deleted
+	remember all the D.S once removed/deleted/timedout can send a notification to listener in code
+d. mapcache: same like map however in this individual entries in hash can be ttl timed out independently
+e. redisson local cache map: it is added for performance,  each application will be having a local in memory entry of hash in redis
+		hence every time a network call is not needed to redis and local in memory data is used, 
+		also in case the data in redis is changed it asynchornously updates the latest data to all the applications using this local cache map
+		hence it can be used as a config server, each microservice can keep local memnory of map/hash and in case data is cahnged in redis 
+		behind the scene it is updated in these individual microservices
+	-- slack chat application uses slack extensively for pub sub
+f. redisson batch: using batch we can create thousand of command put in batch and only when we call execute method in single netwrok call to redis	
+		it do the task which can increase performance in case we have ver very huge operations happening
+		
+cache implementation annotations:
+a. @cacheable: in case data exist in case do not execute the method and return val from cache
+			if data do not exist execute method and out in cache and return that val
+b. @cacheevict: always evict cache entry, remove that specific hash entry present on the hash, other entries remains unhanged
+c. @cacheput: always execute the method and puth the calculated value in cache, upsert old val in cache from new one
+challends in annotations:
+even though very easy to use it has challenges:
+a. can not set ttl for entries/cache hash
+b. not very flexible, in terms of data structure stored
+c. works only for methd with proper return type, for mono/flux return types it do not works
+		in case we are using mongorepo or r2dbcrepo or external api that returns mono/flux of response we can not use cache annotations
+		
+		DROP TABLE IF EXISTS product;
+CREATE TABLE product(
+   id serial PRIMARY KEY,
+   description VARCHAR (500),
+   price numeric (10,2) NOT NULL
+);
+
+{"name":"product-${random}",${__Random(1, 100)}}
+		
+		
+SSE vs websockets
+SSE means server sent envent, mostly used when server can push data, cliet can not pasdata to server
+eg: weather reports, stock price
+Websockets can be 2 way communications eg: chat where data can come ton u or data can be sent by u to server		

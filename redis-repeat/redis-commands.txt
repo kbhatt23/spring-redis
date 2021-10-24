@@ -20,6 +20,9 @@
 
 · KEYS a?? (Returns all keys matching pattern)
 
+. scan 0 (same like keys return all keys but give only first 10, we can use pagination to get another next 10 keys and so on)
+. scan 0 match number* (return first 10 keys with name starting with 'number')
+
 - flushall : remove all the keys present
 
 - dbsize : find all the keys count
@@ -230,3 +233,17 @@ ZPOPMIN myzset (Removes and returns up to count members with the lowest scores i
 - pfmerge counter1 counter2
 	merge the counter into single element
 	also make sure elmeents are unique
+
+================ACL===============
+acl list : show all the users
+acl whoami : show current logged in user
+acl setuser username >pass : create a new user
+ACL DELUSER kbhatt23 : remove user with name kbhatt23
+acl setuser kbhatt23 >jaishreeram on : create usernam kbhatt23 with password jaishreeram and active
+auth kbhatt23 jaishreeram : to login using user kbhatt23 and password jaishreeram
+auth default nopass : login using default user
+
+-- by default any new user created using setuser command wont have any permission and hence can not view acl commands after logging in using auth command
+ 
+ACL SETUSER kbhatt23 >jaishreeram on allcommands allkeys   :  create user kbhatt23/jaishreeram with all permissions
+ACL SETUSER kbhatt23 -@dangerous : to remove dangerous command permissions like flushall , keys * etc, only admin/default have access to these dangerous commands
